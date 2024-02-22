@@ -1,7 +1,8 @@
 use clap::{command, Arg, ArgAction};
-use regex::{RegexBuilder, Regex};
+use regex::{Regex, RegexBuilder};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 use walkdir::WalkDir;
 
 pub struct Input {
@@ -62,11 +63,12 @@ pub fn get_args() -> Input {
 
     let pattern = matches
         .get_one::<String>("patterns")
-        .map(|input| { 
-            RegexBuilder::new(input).case_insensitive(ignore_case)
-            .build()
-            .expect("Pattern invalid")
-})
+        .map(|input| {
+            RegexBuilder::new(input)
+                .case_insensitive(ignore_case)
+                .build()
+                .expect("Pattern invalid")
+        })
         .unwrap();
 
     Input {
@@ -132,28 +134,45 @@ fn traversal_path(path: &String, input: &Input) {
 }
 
 fn read(buffer: impl BufRead, path: Option<String>, input: &Input) {
-    let verify_file_opening = |e| match e {
-        Err(e) => {
-            eprintln!("{e}");
-            None
-        }
-        Ok(content) => Some(content),
-    };
-
     let pattern = |line: &String| {
         input.invert_match && !input.pattern.to_owned().is_match(line)
-        || input.pattern.to_owned().is_match(line)
+            || input.pattern.to_owned().is_match(line)
     };
 
     buffer
         .lines()
-        .filter_map(verify_file_opening)
+        .map_while(Result::ok)
         .filter(pattern)
-        .for_each(|line| {
-            if input.recursive {
-                println!("{}: {}", path.as_ref().unwrap(), line)
-            } else {
-                println!("{}", line)
-            }
-        });
+        .for_each(|line| format_and_print(line, path.as_ref().unwrap(), input));
+}
+
+fn format_and_print(line: String, path: &String, input: &Input) {
+    let stdout = StandardStream::stdout(ColorChoice::Always);
+    let mut stdout_lock = stdout.lock();
+    let mut last_end = 0;
+
+    for mat in input.pattern.find_iter(&line) {
+        if input.recursive {
+            stdout_lock
+                .set_color(ColorSpec::new().set_fg(Some(Color::Magenta)))
+                .unwrap();
+            print!("{}", path);
+            stdout_lock
+                .set_color(ColorSpec::new().set_fg(Some(Color::Cyan)))
+                .unwrap();
+            print!(":");
+            stdout_lock.reset().unwrap();
+        }
+
+        print!("{}", &line[last_end..mat.start()]);
+
+        stdout_lock
+            .set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))
+            .unwrap();
+        print!("{}", &line[mat.start()..mat.end()]);
+
+        stdout_lock.reset().unwrap();
+        last_end = mat.end();
+    }
+    println!("{}", &line[last_end..]);
 }
