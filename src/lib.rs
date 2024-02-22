@@ -1,4 +1,6 @@
 use clap::{command, Arg, ArgAction};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use walkdir::WalkDir;
 
 #[derive(Debug)]
@@ -6,6 +8,7 @@ pub struct Input {
     pub paths: Vec<String>,
     pub ignore_case: bool,
     recursive: bool,
+    pattern: String,
 }
 
 pub fn get_args() -> Input {
@@ -39,6 +42,7 @@ pub fn get_args() -> Input {
       .get_matches();
 
     Input {
+        pattern: matches.get_one::<String>("pattern").unwrap().clone(),
         paths: matches
             .get_many::<String>("paths")
             .unwrap()
@@ -69,6 +73,29 @@ pub fn execute(input: Input) {
                 Ok(entry) => Some(entry),
             })
             .filter(|entry| entry.file_type().is_file())
-            .for_each(|item| println!("{}", item.path().display()));
+            .filter_map(|entry| match File::open(entry.path()) {
+                Err(e) => {
+                    eprintln!("grepnir: {}: {}:", entry.path().display(), e);
+                    None
+                }
+                Ok(file) => Some((file, entry.path().display().to_string())),
+            })
+            .for_each(|(file, path)| read_from_file(file, path, &input.pattern));
     }
+}
+
+fn read_from_file(file: File, path: String, pattern: &String) {
+    let buffer = BufReader::new(&file);
+
+    buffer
+        .lines()
+        .filter_map(|e| match e {
+            Err(e) => {
+                eprintln!("{e}");
+                None
+            }
+            Ok(content) => Some(content),
+        })
+        .filter(|line| line.contains(pattern))
+        .for_each(|line| println!("{}: {}", path, line));
 }
