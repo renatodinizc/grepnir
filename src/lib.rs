@@ -1,5 +1,6 @@
 use clap::{command, Arg, ArgAction};
 use std::fs::File;
+use std::io;
 use std::io::{BufRead, BufReader};
 use walkdir::WalkDir;
 
@@ -54,39 +55,46 @@ pub fn get_args() -> Input {
 }
 
 pub fn execute(input: Input) {
-    for path in input.paths {
-        WalkDir::new(path)
-            .into_iter()
-            .filter_entry(|entry| {
-                if !input.recursive && entry.file_type().is_dir() {
-                    eprintln!("grepnir: {}: Is a directory", entry.path().display());
-                    false
-                } else {
-                    true
-                }
-            })
-            .filter_map(|e| match e {
-                Err(e) => {
-                    eprintln!("grepnir: {}:", e);
-                    None
-                }
-                Ok(entry) => Some(entry),
-            })
-            .filter(|entry| entry.file_type().is_file())
-            .filter_map(|entry| match File::open(entry.path()) {
-                Err(e) => {
-                    eprintln!("grepnir: {}: {}:", entry.path().display(), e);
-                    None
-                }
-                Ok(file) => Some((file, entry.path().display().to_string())),
-            })
-            .for_each(|(file, path)| read_from_file(file, path, &input.pattern, input.ignore_case));
+    for path in &input.paths {
+        if path == "-" {
+            let buffer = BufReader::new(io::stdin());
+            read(buffer, None, &input.pattern, input.ignore_case)
+        } else {
+            WalkDir::new(path)
+                .into_iter()
+                .filter_entry(|entry| {
+                    if !input.recursive && entry.file_type().is_dir() {
+                        eprintln!("grepnir: {}: Is a directory", entry.path().display());
+                        false
+                    } else {
+                        true
+                    }
+                })
+                .filter_map(|e| match e {
+                    Err(e) => {
+                        eprintln!("grepnir: {}:", e);
+                        None
+                    }
+                    Ok(entry) => Some(entry),
+                })
+                .filter(|entry| entry.file_type().is_file())
+                .filter_map(|entry| match File::open(entry.path()) {
+                    Err(e) => {
+                        eprintln!("grepnir: {}: {}:", entry.path().display(), e);
+                        None
+                    }
+                    Ok(file) => Some((file, entry.path().display().to_string())),
+                })
+                .for_each(|(file, path)| {
+                    let buffer = BufReader::new(&file);
+
+                    read(buffer, Some(path), &input.pattern, input.ignore_case)
+                });
+        }
     }
 }
 
-fn read_from_file(file: File, path: String, pattern: &String, ignore_case: bool) {
-    let buffer = BufReader::new(&file);
-
+fn read(buffer: impl BufRead, path: Option<String>, pattern: &String, ignore_case: bool) {
     buffer
         .lines()
         .filter_map(|e| match e {
@@ -103,5 +111,5 @@ fn read_from_file(file: File, path: String, pattern: &String, ignore_case: bool)
                 line.contains(pattern)
             }
         })
-        .for_each(|line| println!("{}: {}", path, line));
+        .for_each(|line| println!("{:?}: {}", path, line));
 }
