@@ -80,11 +80,11 @@ pub fn execute(input: Input) {
                 }
                 Ok(file) => Some((file, entry.path().display().to_string())),
             })
-            .for_each(|(file, path)| read_from_file(file, path, &input.pattern));
+            .for_each(|(file, path)| read_from_file(file, path, &input.pattern, input.ignore_case));
     }
 }
 
-fn read_from_file(file: File, path: String, pattern: &String) {
+fn read_from_file(file: File, path: String, pattern: &String, ignore_case: bool) {
     let buffer = BufReader::new(&file);
 
     buffer
@@ -96,6 +96,12 @@ fn read_from_file(file: File, path: String, pattern: &String) {
             }
             Ok(content) => Some(content),
         })
-        .filter(|line| line.contains(pattern))
+        .filter(|line| {
+            if ignore_case {
+                line.to_uppercase().contains(&pattern.to_uppercase())
+            } else {
+                line.contains(pattern)
+            }
+        })
         .for_each(|line| println!("{}: {}", path, line));
 }
