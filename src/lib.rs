@@ -8,14 +8,15 @@ pub struct Input {
     ignore_case: bool,
     recursive: bool,
     pattern: String,
+    invert_match: bool,
 }
 
 pub fn get_args() -> Input {
     let matches = command!()
     .arg(
         Arg::new("patterns")
-        .help(concat!("grepnir searches for PATTERNS in each PATH.",
-            "PATTERNS is one or more patterns separated by newline characters, and grepnir prints each line that matches a pattern.",
+        .help(concat!("grepnir searches for PATTERNS in each PATH. ",
+            "PATTERNS is one or more patterns separated by newline characters, and grepnir prints each line that matches a pattern. ",
             "Typically PATTERNS should be quoted when grepnir is used in a shell command.")
         )
         .index(1)
@@ -23,7 +24,7 @@ pub fn get_args() -> Input {
     )
     .arg(
         Arg::new("ignore_case")
-        .help("Ignore case distinctions in patterns and input data, so that characters that differ only in case match each other")
+        .help("Ignore case distinctions in patterns and input data, so that characters that differ only in case match each other.")
         .short('i')
         .long("ignore-case")
         .action(ArgAction::SetTrue),
@@ -36,9 +37,16 @@ pub fn get_args() -> Input {
         .action(ArgAction::SetTrue),
     )
     .arg(
+        Arg::new("invert_match")
+        .help("Invert the sense of matching, to select non-matching lines.")
+        .short('v')
+        .long("invert-match")
+        .action(ArgAction::SetTrue),
+    )
+    .arg(
         Arg::new("path")
-        .help(concat!("A PATH of “-” stands for standard input.",
-            "If no PATH is given, recursive searches examine the working directory, and nonrecursive searches read standard input.")
+        .help(concat!("A PATH of “-” stands for standard input. ",
+            "If no PATH is given, recursive searches examine the working directory, and nonrecursive searches read standard input. ")
         )
         .action(ArgAction::Append)
         .index(2)
@@ -49,7 +57,7 @@ pub fn get_args() -> Input {
     let recursive = *matches.get_one::<bool>("recursive").unwrap();
 
     let paths = matches
-        .get_many::<String>("paths")
+        .get_many::<String>("path")
         .unwrap()
         .map(|v| v.to_string())
         .collect::<Vec<String>>();
@@ -59,6 +67,7 @@ pub fn get_args() -> Input {
         recursive,
         pattern: matches.get_one::<String>("patterns").unwrap().to_owned(),
         ignore_case: matches.get_one::<bool>("ignore_case").unwrap().to_owned(),
+        invert_match: matches.get_one::<bool>("invert_match").unwrap().to_owned(),
     }
 }
 
@@ -148,8 +157,13 @@ fn read(buffer: impl BufRead, path: Option<String>, input: &Input) {
     };
 
     let ignore_case_option = |line: &String| {
-        input.ignore_case && line.to_uppercase().contains(&input.pattern.to_uppercase())
-            || line.contains(&input.pattern)
+        if input.invert_match {
+            input.ignore_case && !line.to_uppercase().contains(&input.pattern.to_uppercase())
+                || !line.contains(&input.pattern)
+        } else {
+            input.ignore_case && line.to_uppercase().contains(&input.pattern.to_uppercase())
+                || line.contains(&input.pattern)
+        }
     };
 
     buffer
