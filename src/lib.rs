@@ -1,4 +1,5 @@
 use clap::{command, Arg, ArgAction};
+use regex::Regex;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use walkdir::WalkDir;
@@ -7,7 +8,7 @@ pub struct Input {
     paths: Vec<String>,
     ignore_case: bool,
     recursive: bool,
-    pattern: String,
+    pattern: Regex,
     invert_match: bool,
 }
 
@@ -61,7 +62,10 @@ pub fn get_args() -> Input {
     Input {
         paths,
         recursive: matches.get_one::<bool>("recursive").unwrap().to_owned(),
-        pattern: matches.get_one::<String>("patterns").unwrap().to_owned(),
+        pattern: matches
+            .get_one::<String>("patterns")
+            .map(|input| Regex::new(input).expect("invalid regex pattern"))
+            .unwrap(),
         ignore_case: matches.get_one::<bool>("ignore_case").unwrap().to_owned(),
         invert_match: matches.get_one::<bool>("invert_match").unwrap().to_owned(),
     }
@@ -132,11 +136,21 @@ fn read(buffer: impl BufRead, path: Option<String>, input: &Input) {
 
     let ignore_case_option = |line: &String| {
         if input.invert_match {
-            input.ignore_case && !line.to_uppercase().contains(&input.pattern.to_uppercase())
-                || !line.contains(&input.pattern)
+            input.ignore_case
+                && !input
+                    .pattern
+                    .to_owned()
+                    .to_owned()
+                    .is_match(&line.to_lowercase())
+                || !input.pattern.is_match(line)
         } else {
-            input.ignore_case && line.to_uppercase().contains(&input.pattern.to_uppercase())
-                || line.contains(&input.pattern)
+            input.ignore_case
+                && input
+                    .pattern
+                    .to_owned()
+                    .to_owned()
+                    .is_match(&line.to_lowercase())
+                || input.pattern.is_match(line)
         }
     };
 
