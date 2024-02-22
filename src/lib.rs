@@ -1,6 +1,6 @@
 use clap::{command, Arg, ArgAction};
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Read};
 use walkdir::WalkDir;
 
 pub struct Input {
@@ -42,21 +42,17 @@ pub fn get_args() -> Input {
         )
         .action(ArgAction::Append)
         .index(2)
+        .default_value("-"),
     )
     .get_matches();
 
     let recursive = *matches.get_one::<bool>("recursive").unwrap();
 
     let paths = matches
-        .get_many::<String>("path")
-        .map(|values| values.map(|v| v.to_owned()).collect::<Vec<String>>())
-        .unwrap_or_else(|| {
-            if recursive {
-                vec![".".to_string()]
-            } else {
-                vec!["-".to_string()]
-            }
-        });
+        .get_many::<String>("paths")
+        .unwrap()
+        .map(|v| v.to_string())
+        .collect::<Vec<String>>();
 
     Input {
         paths,
@@ -70,7 +66,8 @@ pub fn execute(input: Input) {
     for path in &input.paths {
         if path == "-" {
             let buffer = BufReader::new(io::stdin());
-            read(buffer, None, &input)
+            traversal_path(&".".to_string(), &input);
+            read(buffer, None, &input);
         } else {
             traversal_path(path, &input);
         }
@@ -97,12 +94,34 @@ fn traversal_path(path: &String, input: &Input) {
 
     let restrict_to_files = |entry: &walkdir::DirEntry| entry.file_type().is_file();
 
-    let verify_file_opening = |entry: walkdir::DirEntry| match File::open(entry.path()) {
-        Err(e) => {
-            eprintln!("grepnir: {}: {}:", entry.path().display(), e);
-            None
+    let verify_file_opening = |entry: walkdir::DirEntry| {
+        let mut buffer = [0; 1024]; // Buffer to read the first 1024 bytes of the file
+        match File::open(entry.path()) {
+            Err(e) => {
+                eprintln!("grepnir: {}: {}:", entry.path().display(), e);
+                None
+            }
+            Ok(mut file) => {
+                match file.read(&mut buffer) {
+                    Ok(_) => {
+                        if buffer.contains(&0) {
+                            // Found a null byte, likely a binary file, skip it
+                            None
+                        } else {
+                            Some((file, entry.path().display().to_string()))
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "grepnir: {}: Error reading file: {}",
+                            entry.path().display(),
+                            e
+                        );
+                        None
+                    }
+                }
+            }
         }
-        Ok(file) => Some((file, entry.path().display().to_string())),
     };
 
     let read_file = |(file, path)| {
