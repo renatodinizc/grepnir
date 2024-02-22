@@ -68,6 +68,7 @@ pub fn execute(input: Input) {
                 }
                 Ok(entry) => Some(entry),
             })
+            .filter(|entry| entry.file_type().is_file())
             .for_each(|item| println!("{}", item.path().display()));
     }
 }
