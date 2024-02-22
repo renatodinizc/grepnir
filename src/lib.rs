@@ -1,23 +1,21 @@
 use clap::{command, Arg, ArgAction};
-use std::fs::{self, File};
-// use std::io;
-// use std::ops::Add;
+use walkdir::WalkDir;
 
+#[derive(Debug)]
 pub struct Input {
     pub paths: Vec<String>,
-    ignore_case: bool,
+    pub ignore_case: bool,
     recursive: bool,
 }
 
 pub fn get_args() -> Input {
     let matches = command!()
-      .arg(
-          Arg::new("byte_count")
-              .help("print the byte count")
-              .short('c')
-              .long("bytes")
-              .action(ArgAction::SetTrue),
-      )
+    .arg(
+        Arg::new("pattern")
+        .help("pattern to be matched")
+        .index(1)
+        .required(true)
+    )
       .arg(
         Arg::new("ignore_case")
             .help("Ignore case distinctions in patterns and input data, so that characters that differ only in case match each other")
@@ -35,6 +33,7 @@ pub fn get_args() -> Input {
       .arg(
           Arg::new("paths")
               .action(ArgAction::Append)
+              .index(2)
               .default_value("-"),
       )
       .get_matches();
@@ -47,5 +46,28 @@ pub fn get_args() -> Input {
             .collect::<Vec<String>>(),
         ignore_case: *matches.get_one::<bool>("ignore_case").unwrap(),
         recursive: *matches.get_one::<bool>("recursive").unwrap(),
+    }
+}
+
+pub fn execute(input: Input) {
+    for path in input.paths {
+        WalkDir::new(path)
+            .into_iter()
+            .filter_entry(|entry| {
+                if !input.recursive && entry.file_type().is_dir() {
+                    eprintln!("grepnir: {}: Is a directory", entry.path().display());
+                    false
+                } else {
+                    true
+                }
+            })
+            .filter_map(|e| match e {
+                Err(e) => {
+                    eprintln!("grepnir: {}:", e);
+                    None
+                }
+                Ok(entry) => Some(entry),
+            })
+            .for_each(|item| println!("{}", item.path().display()));
     }
 }

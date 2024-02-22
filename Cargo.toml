@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.1", features = ['cargo'] }
-
+walkdir = "2.4.0"
 
 [dev-dependencies]
 assert_cmd = "2.0.14"
