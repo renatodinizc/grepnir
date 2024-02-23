@@ -1,44 +1,5 @@
 # Grepnir
 ```
-                            _      
-  __ _ _ __ ___ _ __  _ __ (_)_ __ 
- / _` | '__/ _ \ '_ \| '_ \| | '__|
-| (_| | | |  __/ |_) | | | | | |   
- \__, |_|  \___| .__/|_| |_|_|_|   
- |___/         |_|                 
-
-
-                            _      
-                           (_)     
-  __ _ _ __ ___ _ __  _ __  _ _ __ 
- / _` | '__/ _ \ '_ \| '_ \| | '__|
-| (_| | | |  __/ |_) | | | | | |   
- \__, |_|  \___| .__/|_| |_|_|_|   
-  __/ |        | |                 
- |___/         |_|                 
-
-                               __       
-.-----.----.-----.-----.-----.|__|.----.
-|  _  |   _|  -__|  _  |     ||  ||   _|
-|___  |__| |_____|   __|__|__||__||__|  
-|_____|          |__|                   
-
-                            _      
-                           (_)     
-  __ _ _ __ ___ _ __  _ __  _ _ __ 
- / _` | '__/ _ \ '_ \| '_ \| | '__|
-| (_| | | |  __/ |_) | | | | | |   
- \__, |_|  \___| .__/|_| |_|_|_|   
-  __/ |        | |                 
- |___/         |_|                 
-
-                                    .__        
-   ___________   ____ ______   ____ |__|______ 
-  / ___\_  __ \_/ __ \\____ \ /    \|  \_  __ \
- / /_/  >  | \/\  ___/|  |_> >   |  \  ||  | \/
- \___  /|__|    \___  >   __/|___|  /__||__|   
-/_____/             \/|__|        \/           
-
                                     __         
    __   _ __    __   _____     ___ /\_\  _ __  
  /'_ `\/\`'__\/'__`\/\ '__`\ /' _ `\/\ \/\`'__\
@@ -82,8 +43,6 @@ The executable will be located in `./target/release/`.
 
 - `-h`, `--help`: Print help information about `grepnir` and its options.
 
-- `-V`, `--version`: Print the version information of `grepnir`.
-
 ### Usage Examples
 
 **Basic Search with Multiple Patterns:**
@@ -123,19 +82,13 @@ To find lines that do not contain "deprecated" in `codebase.txt`:
 To search for "function" in files listed by `find`:
 
 ```
-find . -name '*.rs' | xargs cat | ./target/release/grepnir 'function' -
+find . -name '*.rs' | xargs cat | ./target/release/grepnir 'function'
 ```
 
 **Displaying Help Information:**
 
 ```
 ./target/release/grepnir --help
-```
-
-**Displaying Version Information:**
-
-```
-./target/release/grepnir --version
 ```
 
 #### Contributing
